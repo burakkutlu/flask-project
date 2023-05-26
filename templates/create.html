@@ -1,0 +1,37 @@
+<!doctype html>
+<form action="#" method="post">
+{% include 'base.html' %}
+  <div class="container">
+	  {% for message in get_flashed_messages() %}
+		{{ message }}
+	{% endfor %}
+
+    <p>Username:</p>
+	<p><input type="text" name="un" /></p>
+
+	<p>Firstname:</p>
+	<p><input type="text" name="fn" /></p>
+
+	<p>Middlename:</p>
+	<p><input type="text" name="mn" /></p>
+
+	<p>Lastname:</p>
+	<p><input type="text" name="ln" /></p>
+
+	<p>Birthdate:</p>
+	<p><input type="date" name="bd" /></p>
+
+	<p>Email:</p>
+	<p><input type="email" name="e" /></p>
+
+	<p>Password:</p>
+	<p><input type="password" name="pw" /></p>
+	<p><input type="submit" value="Submit"/></p>
+	  <br><a href="/login"> back to login page </a>
+  </div>
+	<script> function show_alert() {
+	  alert("created!");
+	}
+</script>
+
+</form> 

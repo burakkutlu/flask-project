@@ -1,0 +1,37 @@
+<!doctype html>
+<form action="#" method="post">
+	{% include 'base.html' %}
+
+
+  <div class="container">
+	  {% for message in get_flashed_messages() %}
+		{{ message }}
+	{% endfor %}
+
+
+    <p>Username:</p>
+	<p><input type="text" name="un" value={{nameToCheck.username}} ></p>
+
+	<p>Firstname:</p>
+	<p><input type="text" name="fn" value={{nameToCheck.firstname}} ></p>
+
+	<p>Middlename:</p>
+	<p><input type="text" name="mn" value={{nameToCheck.middlename}} ></p>
+
+	<p>Lastname:</p>
+	<p><input type="text" name="ln" value={{nameToCheck.lastname}} ></p>
+
+	<p>Birthdate:</p>
+	<p><input type="date" name="bd" value={{nameToCheck.birthdate}} ></p>
+
+	<p>Email:</p>
+	<p><input type="email" name="e" value={{nameToCheck.email}} ></p>
+
+	<p>Password:</p>
+	<p><input type="password" name="pw" /></p>
+	<p><input type="submit" value="Submit"/></p>
+
+	  <br><a href="/login"> back to login page </a>
+  </div>
+
+</form>

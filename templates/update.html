@@ -1,0 +1,36 @@
+<!doctype html>
+<form action="#" method="post">
+	{% include 'base.html' %}
+  <div class="container">
+	  {% for message in get_flashed_messages() %}
+		{{ message }}
+	{% endfor %}
+    <p>Username:</p>
+	<p><input type="text" name="un" value={{nameToUpdate[1]}} ></p>
+
+	<p>Firstname:</p>
+	<p><input type="text" name="fn" value={{nameToUpdate[2]}} ></p>
+
+	<p>Middlename:</p>
+	<p><input type="text" name="mn" value={{nameToUpdate[3]}} ></p>
+
+	<p>Lastname:</p>
+	<p><input type="text" name="ln" value={{nameToUpdate[4]}} ></p>
+
+	<p>Birthdate:</p>
+	<p><input type="date" name="bd" value={{nameToUpdate[5]}} ></p>
+
+	<p>Email:</p>
+	<p><input type="email" name="e" value={{nameToUpdate[6]}} ></p>
+
+	<p>Password:</p>
+	<p><input type="password" name="pw" /></p>
+	<p><input type="submit" value="Submit"/></p>
+
+  </div>
+<script> function show_alert() {
+  alert("updated!");
+}
+
+</script>
+</form>

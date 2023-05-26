@@ -1,0 +1,486 @@
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from datetime import timedelta
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+from forms import LoginForm, UserForm, PasswordForm, NamerForm
+import sqlite3
+import re
+
+app = Flask(__name__)
+app.secret_key = "hello"
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.permanent_session_lifetime = timedelta(minutes=5)
+
+db = SQLAlchemy(app)
+
+
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+
+    )
+    username = db.Column(
+        db.String(100),
+        unique=True,
+    )
+
+    firstname = db.Column(
+        db.String(100),
+        unique=False,
+    )
+
+    middlename = db.Column(
+        db.String(100),
+        unique=False,
+    )
+
+    lastname = db.Column(
+        db.String(100),
+        unique=False,
+    )
+
+    birthdate = db.Column(
+        db.Date,
+        unique=False
+    )
+
+    email = db.Column(
+        db.String(100),
+        unique=False
+    )
+
+    # password = db.Column(db.String(100), unique=False, nullable=False)
+
+    password_hash = db.Column(
+        db.String(128)
+    )
+
+    ipaddress = db.Column(
+        db.String(100),
+        unique=False,
+    )
+
+    logindatetime = db.Column(
+        db.DateTime,
+        unique=False
+    )
+
+    @property
+    def password(self):
+        raise AttributeError('password is not a readable attribute!')
+
+    @password.setter
+    def password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def verify_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def __init__(self, username, firstname, middlename, lastname, birthdate, email, password_hash, ipaddress,
+                 logindatetime):
+        self.username = username
+        self.firstname = firstname
+        self.middlename = middlename
+        self.lastname = lastname
+        if birthdate == '':
+            self.birthdate = ''
+        else:
+            self.birthdate = datetime.strptime(birthdate, '%Y-%m-%d')
+            self.birthdate = self.birthdate.date()
+        # self.birthdate = datetime.strptime(birthdate, '%d-%m-%Y')
+        self.email = email
+        self.password_hash = password_hash
+        self.ipaddress = ipaddress
+        self.logindatetime = logindatetime
+
+    def initOthers(self, ipaddress, logindatetime):
+        self.ipaddress = ipaddress
+        self.logindatetime = logindatetime
+
+    """
+    def set_password(self, password):
+        self.password = generate_password_hash(
+            password,
+            method='sha256'
+        )
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)
+    """
+
+    def __repr__(self):
+        return '<User {}>'.format(self.username)
+
+
+def clear():
+    for user in User.query.all():
+        print(user.username)
+        user.initOthers('', None)
+
+
+first = True
+
+
+@app.route('/')
+def home():
+    global first
+    if first:
+        clear()
+        with open('log.txt', 'a') as f:
+            f.write('\n-----------------------------------\n\n')
+        first = False
+    with open('log.txt', 'a') as f:
+        f.write('Entered Home Page\n')
+
+    return render_template("baseFT.html")
+
+
+@app.route('/login', methods=["POST", "GET"])
+def login():
+    with open('log.txt', 'a') as f:
+        f.write('Entered Login Page\n')
+    print("login'e girdim")
+
+    form = LoginForm()
+    if form.validate_on_submit():
+        print("login ilk if")
+
+        user = User.query.filter_by(username=form.username.data).first()
+
+        form.username.data = ''
+        if user:
+            user.initOthers(request.remote_addr, datetime.now())
+
+            if not contains(user.username):
+                insert(user)
+
+            db.session.commit()
+            print("login ikinci if")
+            # Check the hash
+            # print(user.password_hash)
+
+            # print(form.password.data)
+
+            if check_password_hash(user.password_hash, form.password.data):
+                with open('log.txt', 'a') as f:
+                    f.write(user.username + ' Logged In!\n')
+                print("geçtiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+                session["username"] = user.username
+                print("burdayim")
+                print(user.username)
+                form.password.data = ''
+                return redirect(url_for("user"))
+            else:
+                with open('log.txt', 'a') as f:
+                    f.write(user.username + ' Entered Wrong Password!\n')
+                print("login ilk else")
+                flash("Wrong Password - Try Again!")
+        else:
+            with open('log.txt', 'a') as f:
+                f.write('Tried to login an account that does not exist!\n')
+            print("login ikinci else")
+            flash("That User Doesn't Exist! Try Again...")
+
+    return render_template('login.html', form=form)
+
+
+@app.route('/logout')
+def logout():
+    if "username" in session:
+        username = session["username"]
+        with open('log.txt', 'a') as f:
+            f.write(username + ' Logged Out!\n')
+        print(username)
+        session.pop("username", None)
+        if contains(username):
+            print("logouttaki containse girdim")
+            deleteTable(username)
+        else:
+            print("logouttaki containse girmedim")
+    """sessiondan çıkart aynı page'a at login page'ine"""
+    print("logouttayım")
+
+    return redirect(url_for("login"))
+
+
+@app.route('/user')
+def user():
+    with open('log.txt', 'a') as f:
+        f.write('Entered user!\n')
+
+    if "username" in session:
+        username = session["username"]
+        with open('log.txt', 'a') as f:
+            f.write(username + '\'s page\n')
+        return render_template('website.html', context=username)
+    else:
+        flash("You dont logged in. Please login first.")
+        return redirect(url_for("login"))
+
+
+@app.route('/user/list')
+def list():
+    with open('log.txt', 'a') as f:
+        f.write('Someone looked to list!\n')
+    print("liste girdim")
+    users = User.query.all()
+    return render_template('list.html', users=users)
+
+
+@app.route('/user/create', methods=["POST", "GET"])
+def create():
+    """username = request.args.get('user')
+    firstname = request.args.get('firstname')
+    middlename = request.args.get('middlename')
+    lastname = request.args.get('lastname')
+    birthdate = request.args.get('birthdate')
+    email = request.args.get('email')
+    password = request.args.get('password')
+    """
+    with open('log.txt', 'a') as f:
+        f.write('Entered Create\n')
+
+    if request.method == "POST":
+        username = request.form["un"]
+        print(username)
+        firstname = request.form["fn"]
+        print(firstname)
+        middlename = request.form["mn"]
+        print(middlename)
+        lastname = request.form["ln"]
+        print(lastname)
+        birthdate = request.form["bd"]
+        print(birthdate)
+        email = request.form["e"]
+        print(email)
+        password = request.form["pw"]
+        print(password)
+
+        password_hashed = generate_password_hash(password)
+        print("password_hashed: ")
+        print(password_hashed)
+        new_user = User(
+            username=username,
+            firstname=firstname,
+            middlename=middlename,
+            lastname=lastname,
+            birthdate=birthdate,
+            email=email,
+            password_hash=password_hashed,
+            ipaddress='',
+            logindatetime=None
+        )
+        print("aqsdasdasdasddadasd")
+        print(email)
+        errorMessage = isValidUsername(username)
+
+        data = [username, firstname, middlename, lastname, birthdate, email, password]
+        data2 = ["username", "firstname", "middlename", "lastname", "birthdate", "email", "password"]
+
+        for x in range(len(data) - 2):
+            if data[x] == "":
+                flash(data2[x] + " cannot be empty")
+
+                with open('log.txt', 'a') as f:
+                    f.write('Try to leave' + data2[x] + ' blank \n')
+                return render_template("validCheck.html", nameToCheck=new_user)
+
+        if errorMessage != "True":
+            flash(errorMessage)
+            with open('log.txt', 'a') as f:
+                f.write('Wrong username attempt during account creation\n')
+            return render_template("validCheck.html", nameToCheck=new_user)
+        elif not isValidEmail(email):
+            print("buraya girdimmmmmmmmmmmmm")
+            flash("Flash message. Wrong email!")
+            with open('log.txt', 'a') as f:
+                f.write('Wrong email attempt during account creation\n')
+            return render_template("validCheck.html", nameToCheck=new_user)
+        elif not isValidPassword(password):
+            with open('log.txt', 'a') as f:
+                f.write('Wrong password attempt during account creation\n')
+            flash(
+                "Flash message. Wrong password format! It should be min 8 length. Also, it should contains at least one uppercase letter, one lowercase letter and one number.")
+            return render_template("validCheck.html", nameToCheck=new_user)
+        else:
+            print("add'e gircem şimdi")
+            db.session.add(new_user, "")  # Adds new User record to database
+            print("commit'e gircem şimdi")
+            db.session.commit()  # Commits all changes
+            print("commit ettim en son")
+
+            with open('log.txt', 'a') as f:
+                f.write(username + ' is created!\n')
+
+            return redirect(url_for("login"))
+            # return make_response(f"{new_user} successfully created!")
+
+
+
+    else:
+        print("girdim buraya ")
+        return render_template("create.html")
+
+
+@app.route('/user/delete/<id>')
+def delete(id):
+    with open('log.txt', 'a') as f:
+        f.write('Entered Delete\\' + id + '\n')
+    print("delete'a girdim")
+    user = User.query.filter_by(id=id).first()
+    print(user.username)
+    db.session.delete(user)
+    db.session.commit()
+    return redirect(url_for("login"))
+
+
+@app.route('/user/update/<id>', methods=["POST", "GET"])  # htmlinde sikinti var
+def update(id):
+    print("update'a girdim")
+    with open('log.txt', 'a') as f:
+        f.write('Entered Update\\' + id + '\n')
+    nameToUpdate = User.query.get_or_404(id)
+    if request.method == "POST":
+        nameToUpdate.username = request.form["un"]
+        nameToUpdate.firstname = request.form["fn"]
+        nameToUpdate.middlename = request.form["mn"]
+        nameToUpdate.lastname = request.form["ln"]
+        birthdate = request.form["bd"]
+        nameToUpdate.birthdate = datetime.strptime(birthdate, '%Y-%m-%d')
+        nameToUpdate.email = request.form["e"]
+        nameToUpdate.password = request.form["pw"]
+        try:
+            print("2")
+            db.session.commit()
+            return render_template("update.html", nameToUpdate=nameToUpdate)
+        except:
+            print("3")
+            flash("Error! ")
+            return render_template("update.html", nameToUpdate=nameToUpdate)
+    else:
+        print("1")
+        print(nameToUpdate)
+        return render_template("update.html", nameToUpdate=nameToUpdate)
+
+
+@app.route('/onlineusers')
+def onlineusers():
+    with open('log.txt', 'a') as f:
+        f.write('Entered onlineusers\n')
+    users = findAll()
+    print(type(users))
+    for x in range(len(users)):
+        print(users[x][1])
+    return render_template("onlineList.html", users=users)
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    with open('log.txt', 'a') as f:
+        f.write('Entered non exist page\n')
+    return render_template("404.html"), 404
+
+
+def isValidUsername(username):
+    for user in User.query.all():
+        if username == user.username:
+            return "This username is taken."
+
+    pattern = re.compile("^(.*\s+.*)+$")
+    if pattern.match(username):
+        return "Username cannot contains white space."
+    else:
+        return "True"
+
+
+def isValidEmail(email):
+    pattern = re.compile("^([a-zA-Z0-9]*)@([a-zA-Z]*)\.([a-zA-Z]*)")
+    return pattern.match(email)
+
+
+def isValidPassword(password):
+    pattern = re.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$")
+    return pattern.match(password)
+
+
+def createTable():
+    conn = sqlite3.connect('instance/users.db')
+    cursor = conn.cursor()
+    cursor.execute('CREATE TABLE if not exists onlineUsers ('
+                   '"username" CHAR(100) PRIMARY KEY,'
+                   '"ipaddress" INTEGER,'
+                   '"logindatetime" DATETIME);'
+                   )
+
+
+def insert_stmt():
+    return """INSERT INTO onlineUsers ('username', 'ipaddress', 'logindatetime') VALUES (?, ?, ?);"""
+
+
+def insert(user):
+    conn = sqlite3.connect('instance/users.db')
+    cursor = conn.cursor()
+
+    # self.birthdate = datetime.strptime(birthdate, '%Y-%m-%d')
+    # self.birthdate = self.birthdate.date()
+
+    t = datetime.now()
+    t = t.strftime('%Y-%m-%d %H:%M:%S')
+    print("asdasdasdaasddasasdasddas:")
+    print(t)
+    data = (user.username, user.ipaddress, t)
+
+    cursor.execute(insert_stmt(), data)
+    conn.commit()
+    printIt()
+
+
+def contains(username):
+    print("containse girdim")
+    conn = sqlite3.connect('instance/users.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM onlineUsers WHERE username=?;", (username,))
+    for x in cursor.fetchall():
+        return True
+
+    return False
+
+
+def deleteTable(username):
+    conn = sqlite3.connect('instance/users.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM onlineUsers WHERE username=?;", (username,))
+    conn.commit()
+
+
+def findAll():
+    conn = sqlite3.connect('instance/users.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM onlineUsers")
+    data = cursor.fetchall()
+    for x in data:
+        print(x)
+
+    return data
+
+
+def printIt():
+    conn = sqlite3.connect('instance/users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM onlineUsers')
+    # cursor.execute('PRAGMA table_info(onlineUsers);')
+
+    x = cursor.fetchall()
+    print(x)
+
+
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+    createTable()
+    app.run()
+

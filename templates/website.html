@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+    <title>Home page</title>
+    </head>
+    <body>
+    {% include 'base.html' %}
+    {% for message in get_flashed_messages() %}
+		{{ message }}
+    {% endfor %}
+	<p>You are login successfully.</p>
+
+    <h1> Hi {{context}} </h1>
+
+    <div style="float:left">
+        <button type="button" class="btn btn-dark"><a href="/user/delete/{{id}}"> delete </a></button>
+</div>
+    <div style="float:left">
+        <button type="button" class="btn btn-dark"><a href="/user/update/{{id}}"> update </a></button>
+</div>
+    <div style="float:right">
+        <button type="button" class="btn btn-dark"><a href="logout"> logout </a></button>
+</div>
+    </body>
+</html>
